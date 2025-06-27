@@ -1,6 +1,6 @@
-# 🏓 P2P Pong — Serverless Multiplayer Pong in Your Browser
+# 🏓 PeerPong — Serverless Multiplayer Pong in Your Browser
 
-Welcome to **P2P Pong** — a blazing-fast, multiplayer Pong game built for the web. Play head-to-head with friends in real time, chat as you play, and host or join games with a simple 4-character code. No sign-ups, no servers, no database — just pure peer-to-peer fun!
+Welcome to **PeerPong** — a blazing-fast, Peer-to-peer multiplayer Pong game built for the web. Play head-to-head with friends in real time, chat as you play, and host or join games with a simple 4-character code. No sign-ups, no servers, no database — just pure peer-to-peer fun!
 
 ---
 

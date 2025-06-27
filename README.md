@@ -80,9 +80,9 @@ Just open your browser and start playing.
 ## 🧩 Project Structure
 
 ```
-pong-core/           # Rust game logic (compiled to WASM)
+pong-game/           # Rust game logic (compiled to WASM)
 frontend/            # HTML, JS glue code, WASM loader, UI
-worker/              # Cloudflare Worker & Durable Object (signaling)
+workers/             # Cloudflare Worker & Durable Object (signaling)
 ```
 
 ---

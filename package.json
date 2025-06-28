@@ -1,0 +1,9 @@
+{
+  "name": "peerpong",
+  "version": "0.1.0",
+  "description": "Minimal P2P Pong project with Rust/WASM",
+  "scripts": {
+    "build": "cd pong-game && wasm-pack build --target web --out-dir ../frontend/pkg",
+    "dev": "npm run build && cd frontend && python -m http.server 8000"
+  }
+}

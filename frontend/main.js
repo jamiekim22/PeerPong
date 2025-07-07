@@ -1,4 +1,4 @@
-import init, { greet, Game, create_game, update_game, get_game_data } from './pkg/pong_game.js';
+import init, { greet, Game, create_game, update_game, get_game_data, move_paddle1, move_paddle2 } from './pkg/pong_game.js';
 
 let gameState = null;
 let canvas = null;
@@ -29,8 +29,32 @@ async function run() {
         // Update page
         document.getElementById('output').innerHTML = `
             <p>✅ WASM module loaded successfully</p>
+            <p>✅ Physics engine: collision detection, scoring, paddle movement</p>
+            <p>✅ Controls: W/S for left paddle, ↑/↓ for right paddle</p>
             <p>Game data: ${serializedState}</p>
         `;
+        
+        // Add keyboard controls for testing
+        window.addEventListener('keydown', (e) => {
+            const deltaTime = 0.016; // Approximate frame time
+            
+            switch(e.key) {
+                case 'w': // Move left paddle up
+                case 'W':
+                    move_paddle1(gameState, gameState.paddle1.y - 50, deltaTime);
+                    break;
+                case 's': // Move left paddle down
+                case 'S':
+                    move_paddle1(gameState, gameState.paddle1.y + 50, deltaTime);
+                    break;
+                case 'ArrowUp': // Move right paddle up
+                    move_paddle2(gameState, gameState.paddle2.y - 50, deltaTime);
+                    break;
+                case 'ArrowDown': // Move right paddle down
+                    move_paddle2(gameState, gameState.paddle2.y + 50, deltaTime);
+                    break;
+            }
+        });
         
         // Start game loop
         requestAnimationFrame(gameLoop);

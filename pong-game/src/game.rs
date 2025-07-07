@@ -1,4 +1,9 @@
 use wasm_bindgen::prelude::*;
+use crate::physics::{
+    update_ball_position, check_ball_wall_collision, resolve_ball_wall_collision,
+    check_ball_paddle_collision, resolve_ball_paddle_collision, check_ball_out_of_bounds,
+    reset_ball_position, Player
+};
 
 pub const FIELD_WIDTH: f32 = 800.0;
 pub const FIELD_HEIGHT: f32 = 400.0;
@@ -11,10 +16,10 @@ pub const BALL_SPEED: f32 = 250.0; // pixels per second
 #[wasm_bindgen]
 #[derive(Clone, Copy)]
 pub struct Paddle {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) width: f32,
+    pub(crate) height: f32,
 }
 
 #[wasm_bindgen]
@@ -45,11 +50,11 @@ impl Paddle {
 #[wasm_bindgen]
 #[derive(Clone, Copy)]
 pub struct Ball {
-    x: f32,
-    y: f32,
-    dx: f32, 
-    dy: f32, 
-    radius: f32,
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) dx: f32, 
+    pub(crate) dy: f32, 
+    pub(crate) radius: f32,
 }
 
 #[wasm_bindgen]
@@ -84,8 +89,8 @@ impl Ball {
 #[wasm_bindgen]
 #[derive(Clone, Copy)]
 pub struct Score {
-    player1: u32,
-    player2: u32,
+    pub(crate) player1: u32,
+    pub(crate) player2: u32,
 }
 
 #[wasm_bindgen]
@@ -117,11 +122,9 @@ pub struct GameState {
 impl GameState {
     #[wasm_bindgen(constructor)]
     pub fn new() -> GameState {
-        // Initialize paddles
         let paddle1 = Paddle::new(20.0, FIELD_HEIGHT / 2.0 - PADDLE_HEIGHT / 2.0);
         let paddle2 = Paddle::new(FIELD_WIDTH - 20.0 - PADDLE_WIDTH, FIELD_HEIGHT / 2.0 - PADDLE_HEIGHT / 2.0);
         
-        // Initialize ball with random direction
         let initial_angle = if js_sys::Math::random() > 0.5 { 0.3 } else { -0.3 };
         let ball_dx = if js_sys::Math::random() > 0.5 { BALL_SPEED } else { -BALL_SPEED };
         let ball_dy = ball_dx * initial_angle;
@@ -144,24 +147,36 @@ impl GameState {
     }
 
     pub fn update(&mut self, delta_time: f32) {
-        // Update ball position
-        self.ball.x += self.ball.dx * delta_time;
-        self.ball.y += self.ball.dy * delta_time;
+        update_ball_position(&mut self.ball, delta_time);
 
-        // Basic boundary collision for top/bottom
-        if self.ball.y <= self.ball.radius || self.ball.y >= FIELD_HEIGHT - self.ball.radius {
-            self.ball.dy = -self.ball.dy;
+        if check_ball_wall_collision(&self.ball, FIELD_HEIGHT) {
+            resolve_ball_wall_collision(&mut self.ball);
         }
 
-        // Reset ball if it goes off screen (simplified for now)
-        if self.ball.x < 0.0 || self.ball.x > FIELD_WIDTH {
-            self.ball.x = FIELD_WIDTH / 2.0;
-            self.ball.y = FIELD_HEIGHT / 2.0;
-            self.ball.dx = -self.ball.dx;
+        if check_ball_paddle_collision(&self.ball, &self.paddle1) {
+            resolve_ball_paddle_collision(&mut self.ball, &self.paddle1);
+        } else if check_ball_paddle_collision(&self.ball, &self.paddle2) {
+            resolve_ball_paddle_collision(&mut self.ball, &self.paddle2);
+        }
+
+        if let Some(scoring_player) = check_ball_out_of_bounds(&self.ball, FIELD_WIDTH) {
+            match scoring_player {
+                Player::Player1 => self.score.player1 += 1,
+                Player::Player2 => self.score.player2 += 1,
+            }
+            reset_ball_position(&mut self.ball, FIELD_WIDTH, FIELD_HEIGHT);
         }
     }
 
-    // Getters for rendering
+    pub fn move_paddle1(&mut self, target_y: f32, delta_time: f32) {
+        crate::physics::update_paddle_position(&mut self.paddle1, target_y, delta_time);
+    }
+
+    pub fn move_paddle2(&mut self, target_y: f32, delta_time: f32) {
+        crate::physics::update_paddle_position(&mut self.paddle2, target_y, delta_time);
+    }
+
+    // Getters 
     #[wasm_bindgen(getter)]
     pub fn paddle1(&self) -> Paddle {
         self.paddle1

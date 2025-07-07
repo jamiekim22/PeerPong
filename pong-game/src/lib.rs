@@ -1,6 +1,8 @@
 use wasm_bindgen::prelude::*;
 
+// Import our modules
 pub mod game;
+pub mod physics;
 pub use game::*;
 
 #[wasm_bindgen]
@@ -55,4 +57,14 @@ impl Game {
     pub fn message(&self) -> String {
         self.message.clone()
     }
+}
+
+#[wasm_bindgen]
+pub fn move_paddle1(game: &mut GameState, target_y: f32, delta_time: f32) {
+    game.move_paddle1(target_y, delta_time);
+}
+
+#[wasm_bindgen]
+pub fn move_paddle2(game: &mut GameState, target_y: f32, delta_time: f32) {
+    game.move_paddle2(target_y, delta_time);
 }

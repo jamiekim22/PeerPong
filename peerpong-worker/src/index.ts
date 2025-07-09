@@ -1,5 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
+import { GameRoom } from "./gameroom";
+import { Env } from "./types";
 
+export { GameRoom };
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
@@ -47,20 +50,117 @@ export default {
 	 * @param ctx - The execution context of the Worker
 	 * @returns The response to be sent back to the client
 	 */
-	async fetch(request, env, ctx): Promise<Response> {
-		// Create a `DurableObjectId` for an instance of the `MyDurableObject`
-		// class named "foo". Requests from all Workers to the instance named
-		// "foo" will go to a single globally unique Durable Object instance.
-		const id: DurableObjectId = env.MY_DURABLE_OBJECT.idFromName("foo");
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		const url = new URL(request.url);
+		const path = url.pathname;
 
-		// Create a stub to open a communication channel with the Durable
-		// Object instance.
-		const stub = env.MY_DURABLE_OBJECT.get(id);
+		// CORS headers
+		const corsHeaders = {
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type"
+		};
 
-		// Call the `sayHello()` RPC method on the stub to invoke the method on
-		// the remote Durable Object instance
-		const greeting = await stub.sayHello("world");
+		if (request.method === "OPTIONS") {
+			// Handle preflight requests
+			return new Response(null, {
+				status: 204,
+				headers: corsHeaders
+			});
+		}
+		try {
+			if (path === '/host' && request.method === "POST") {
+				const gameCode = generateGameCode();
+				const roomId = env.GAME_ROOMS.idFromName(gameCode);
+				const room = env.GAME_ROOMS.get(roomId);
 
-		return new Response(greeting);
-	},
+				await room.fetch(new Request('http://localhost/init', {method: 'POST'}));
+				
+				return new Response(JSON.stringify({ gameCode }), {
+					headers: {...corsHeaders, "Content-Type": "application/json"}
+				});
+			}
+
+			if (path.startsWith('/game/') && request.method === "POST") {
+				const gameCode = path.split('/')[2];
+				const action = path.split('/')[3]; // Note to self: gonna be 'join' or 'signal' depending on who is calling
+				
+				if (!gameCode || !action) {
+					return new Response(JSON.stringify({ error: 'Invalid path' }), {
+						status: 400,
+						headers: {...corsHeaders, "Content-Type": "application/json"}
+					});
+				}
+				
+				const roomId = env.GAME_ROOMS.idFromName(gameCode);
+				const room = env.GAME_ROOMS.get(roomId);
+
+				// Clone the request body for forwarding
+				const requestBody = request.body ? await request.text() : null;
+				
+				// Forward the request to the game room with the correct path
+				const roomRequest = new Request(`http://localhost/${action}`, {
+					method: request.method,
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: requestBody
+				});
+
+				return await room.fetch(roomRequest);
+			}
+
+			if (path.startsWith('/game/') && request.method === "GET") {
+				const gameCode = path.split('/')[2];
+				const action = path.split('/')[3]; // Note to self: gonna be 'status' or 'signals'
+				const playerId = path.split('/')[4]; 
+				
+				if (!gameCode || !action) {
+					return new Response(JSON.stringify({ error: 'Invalid path' }), {
+						status: 400,
+						headers: {...corsHeaders, "Content-Type": "application/json"}
+					});
+				}
+				
+				const roomId = env.GAME_ROOMS.idFromName(gameCode);
+				const room = env.GAME_ROOMS.get(roomId);
+
+				// Forward the request to the game room with the correct path
+				let roomPath = `/${action}`;
+				if (action === 'signals' && playerId) {
+					roomPath = `/signals/${playerId}`;
+				}
+
+				const roomRequest = new Request(`http://localhost${roomPath}`, {
+					method: request.method,
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+
+				return await room.fetch(roomRequest);
+			}
+
+			return new Response('Endpoint not found', {
+				status: 404,
+				headers: corsHeaders
+			});
+
+		} catch (e : any) {
+			return new Response(JSON.stringify({ error: e.message }), {
+				status: 500,
+				headers: { ...corsHeaders, "Content-Type": "application/json" }
+			});
+		}
+	}
+
 } satisfies ExportedHandler<Env>;
+
+function generateGameCode(): string {
+	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+	let result = '';
+	for (let i = 0; i < 4; i++) {
+		result += chars.charAt(Math.floor(Math.random() * chars.length));
+	}
+	return result;
+}
